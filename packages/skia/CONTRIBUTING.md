@@ -129,6 +129,45 @@ The npm packages this library consumes (`react-native-skia-android`, `react-nati
 
 Back in this repo, bump the prebuilt binary versions in `packages/skia/package.json` (`react-native-skia-android` and `react-native-skia-apple-*`) to the versions you just published, run `yarn`, and re-run `pod install` in the example app so it consumes the released binaries. Drop the throwaway `node_modules` and `libs/ios/.version` edits from step 3.
 
+### Swift Package Manager (preview)
+
+CocoaPods stays the default. `Package.swift` is additive: SwiftPM ignores the
+podspec, and CocoaPods ignores `Package.swift`.
+
+SwiftPM support requires **React Native 0.87 or newer** — earlier releases ship
+no `scripts/spm`. `apps/example` is on an older version, so it cannot exercise
+this path.
+
+Autolinking references the library through a symlink at
+`<app>/ios/build/generated/autolinking/libs/ReactNativeSkia`, and SwiftPM
+resolves the manifest's relative paths against that symlink rather than against
+`packages/skia`. The two React Native package paths are therefore identical for
+every standard app. The target name is pinned in `react-native.config.js`;
+without it a future React Native release would derive it from the podspec
+instead and change the header import prefix.
+
+Skia's Apple sources still gate on `RCT_NEW_ARCH_ENABLED` and
+`RCT_REMOVE_LEGACY_ARCH`. CocoaPods forces both project-wide; the SwiftPM path
+defines neither, so `Package.swift` defines them itself.
+
+#### Binaries
+
+The manifest prefers the `react-native-skia-apple-ios` npm package already
+installed for the CocoaPods build, so a checkout that has run `yarn install`
+builds offline. It falls back to the Swift package published from
+[wcandillon/react-native-skia-binaries](https://github.com/wcandillon/react-native-skia-binaries),
+which is generated from this repository's release tarballs by the same pipeline
+that produces the binary npm packages — see [Upgrading Skia](#upgrading-skia).
+
+`binaryTarget(url:)` accepts zip only, not the `.tar.gz` the **Build SKIA**
+workflow publishes, and rejects any scheme but `https`. The checksums match one
+exact set of bytes, so the archives and the manifest are always regenerated and
+released together.
+
+When switching a checkout between the local and released binaries, delete
+`ios/<App>.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`
+first — a stale pin silently keeps the previous source.
+
 ### Publishing
 
 - Run the commands in the [Building](#building) section
